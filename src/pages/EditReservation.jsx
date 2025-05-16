@@ -29,7 +29,7 @@ const EditReservation = () => {
     const reservationRef = doc(db, "reservations", reservation.id);
     await updateDoc(reservationRef, formData);
     alert("예약 정보가 수정되었습니다.");
-    navigate("/admin/reservations");
+    navigate("/admin");
   };
 
   return (

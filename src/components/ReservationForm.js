@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, getDoc, addDoc, getDocs, query, where, doc  } from "firebase/firestore";
 
 const ReservationForm = () => {
   const [form, setForm] = useState({
@@ -20,6 +20,33 @@ const ReservationForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+            
+      const settingsRef = doc(db, "settings", "general");
+      const settingsSnap = await getDoc(settingsRef);
+      const settings = settingsSnap.data();
+
+      const snapshot = await getDocs(
+        query(collection(db, "reservations"),
+          where("date", "==", form.date),
+          where("time", "==", form.time)
+        )
+      );
+
+      const existingReservations = snapshot.docs.map(doc => doc.data());
+      const totalPeople = existingReservations.reduce((sum, r) => sum + Number(r.people), 0);
+      const totalCount = existingReservations.length;
+
+      if (totalPeople + Number(form.people) > settings.maxPeoplePerSlot) {
+        alert("해당 시간의 인원 수가 초과되었습니다.");
+        return;
+      }
+
+      if (totalCount >= settings.maxReservationsPerSlot) {
+        alert("해당 시간의 예약 수가 초과되었습니다.");
+        return;
+      }
+
+
       await addDoc(collection(db, "reservations"), form);
       alert("예약이 완료되었습니다!");
       setForm({ name: "", phone: "", date: "", time: "", people: "", request: "" });
@@ -39,7 +66,7 @@ const ReservationForm = () => {
         </div>
         <div>
           <label>전화번호: </label>
-          <input name="phone" value={form.phone} onChange={handleChange} required />
+          <input name="phone" inputMode="numeric" pattern="\d*" value={form.phone} onChange={handleChange} required />
         </div>
         <div>
           <label>날짜: </label>
@@ -51,7 +78,7 @@ const ReservationForm = () => {
         </div>
         <div>
           <label>인원 수: </label>
-          <input type="number" name="people" value={form.people} onChange={handleChange} required />
+          <input type="number" min={1} name="people" value={form.people} onChange={handleChange} required />
         </div>
         <div>
           <label>요청사항: </label>

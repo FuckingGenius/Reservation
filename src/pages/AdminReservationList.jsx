@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 
 const Admin = () => {
   const [reservations, setReservations] = useState([]);
@@ -14,6 +17,25 @@ const navigate = useNavigate();
       ...doc.data()
     }));
     setReservations(data);
+  };
+
+  const exportToExcel = () => {
+    const filtered = reservations.map(res => ({
+      이름: res.name,
+      전화번호: typeof res.phone === "string" ? res.phone.replace(/[^0-9]/g, "") : "",
+      날짜: res.date,
+      시간: res.time,
+      인원: typeof res.people === "number" ? res.people : parseInt(res.people) || "",
+      요청사항: res.request || ""
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(filtered);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reservations");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, "reservations.xlsx");
   };
 
   const handleDelete = async (id) => {
@@ -31,6 +53,7 @@ const navigate = useNavigate();
   return (
     <div>
       <h2>예약 목록</h2>
+      <button onClick={exportToExcel}>엑셀로 내보내기</button>
       <table>
         <thead>
           <tr>
