@@ -1,7 +1,6 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
-import { collection, getDoc, addDoc, getDocs, query, where, doc  } from "firebase/firestore";
+import { collection, getDoc, addDoc, getDocs, query, where, doc } from "firebase/firestore";
 
 const ReservationForm = () => {
   const [form, setForm] = useState({
@@ -13,20 +12,89 @@ const ReservationForm = () => {
     request: "",
   });
 
+  const [settings, setSettings] = useState(null);
+  const [timeOptions, setTimeOptions] = useState([]);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const settingsRef = doc(db, "settings", "reservationSettings");
+      const settingsSnap = await getDoc(settingsRef);
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        setSettings(data);
+        generateTimeOptions(data);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const generateTimeOptions = (config) => {
+    const options = [];
+    const [startHour, startMin] = config.openTime.split(":").map(Number);
+    const [endHour, endMin] = config.closeTime.split(":").map(Number);
+    const interval = config.timeInterval || 30;
+
+    let current = new Date();
+    current.setHours(startHour, startMin, 0, 0);
+    const end = new Date();
+    end.setHours(endHour, endMin, 0, 0);
+
+    while (current <= end) {
+      const hh = String(current.getHours()).padStart(2, "0");
+      const mm = String(current.getMinutes()).padStart(2, "0");
+      options.push(`${hh}:${mm}`);
+      current.setMinutes(current.getMinutes() + interval);
+    }
+    setTimeOptions(options);
+  };
+
+  const isDateDisabled = (dateStr) => {
+    if (!settings) return false;
+    const dateObj = new Date(dateStr);
+    const day = dateObj.getDay();
+    const isFixedOffDay = settings.offDays?.includes(day);
+    const isHoliday = settings.holidays?.includes(dateStr);
+    return isFixedOffDay || isHoliday;
+  };
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+  
+    // 날짜 유효성 검사 추가
+    if (name === "date" && settings) {
+      const selectedDate = new Date(value);
+      const dayOfWeek = selectedDate.getDay(); // 0(일) ~ 6(토)
+      const formatted = value; // 'YYYY-MM-DD'
+  
+      if (
+        settings.offDays.includes(dayOfWeek) ||
+        settings.holidays.includes(formatted)
+      ) {
+        alert("휴무일에는 예약이 불가능합니다.");
+        return; // 날짜 선택 무시
+      }
+    }
+  
+    setForm({ ...form, [name]: value });
+  };  
+
+  const handleDateChange = (e) => {
+    const selectedDate = e.target.value;
+    if (isDateDisabled(selectedDate)) {
+      alert("선택하신 날짜는 휴무일입니다.");
+      setForm({ ...form, date: "" });
+    } else {
+      setForm({ ...form, date: selectedDate });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-            
-      const settingsRef = doc(db, "settings", "general");
-      const settingsSnap = await getDoc(settingsRef);
-      const settings = settingsSnap.data();
+      if (!settings) return;
 
       const snapshot = await getDocs(
-        query(collection(db, "reservations"),
+        query(
+          collection(db, "reservations"),
           where("date", "==", form.date),
           where("time", "==", form.time)
         )
@@ -36,16 +104,15 @@ const ReservationForm = () => {
       const totalPeople = existingReservations.reduce((sum, r) => sum + Number(r.people), 0);
       const totalCount = existingReservations.length;
 
-      if (totalPeople + Number(form.people) > settings.maxPeoplePerSlot) {
+      if (totalPeople + Number(form.people) > settings.maxPeoplePerReservation) {
         alert("해당 시간의 인원 수가 초과되었습니다.");
         return;
       }
 
-      if (totalCount >= settings.maxReservationsPerSlot) {
+      if (totalCount >= settings.maxPeoplePerTimeSlot) {
         alert("해당 시간의 예약 수가 초과되었습니다.");
         return;
       }
-
 
       await addDoc(collection(db, "reservations"), form);
       alert("예약이 완료되었습니다!");
@@ -70,11 +137,16 @@ const ReservationForm = () => {
         </div>
         <div>
           <label>날짜: </label>
-          <input type="date" name="date" value={form.date} onChange={handleChange} required />
+          <input type="date" name="date" value={form.date} onChange={handleDateChange} required />
         </div>
         <div>
           <label>시간: </label>
-          <input type="time" name="time" value={form.time} onChange={handleChange} required />
+          <select name="time" value={form.time} onChange={handleChange} required>
+            <option value="">시간 선택</option>
+            {timeOptions.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label>인원 수: </label>

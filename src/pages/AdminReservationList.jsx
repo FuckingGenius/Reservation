@@ -6,10 +6,18 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
 
-const Admin = () => {
+  const Admin = () => {
   const [reservations, setReservations] = useState([]);
 
-const navigate = useNavigate();
+  const navigate = useNavigate();
+
+  useEffect(() => { 
+    const isAdmin = localStorage.getItem("isAdmin");
+    if (!isAdmin) {
+      navigate("/login"); // 로그인 페이지로 리디렉션
+    }
+  }, [navigate]);
+
   const fetchReservations = async () => {
     const querySnapshot = await getDocs(collection(db, 'reservations'));
     const data = querySnapshot.docs.map((doc) => ({
