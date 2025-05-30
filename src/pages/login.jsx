@@ -1,49 +1,64 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "../firebase";
 
 const Login = () => {
-  const [employeeId, setEmployeeId] = useState("");
-  const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
     try {
-      const q = query(
-        collection(db, "users"),
-        where("employeeId", "==", employeeId),
-        where("password", "==", password), // 해시하지 않았다면 단순 비교
-        where("isAdmin", "==", true)
-      );
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        localStorage.setItem("isAdmin", "true");
-        navigate("/admin"); // 관리자 페이지로 이동
-      } else {
-        alert("로그인 실패: 정보가 일치하지 않거나 관리자가 아닙니다.");
-      }
+      await signInWithPopup(auth, provider);
+      navigate("/admin");
     } catch (error) {
-      console.error("로그인 오류:", error);
-      alert("로그인 중 오류가 발생했습니다.");
+      console.error("구글 로그인 에러:", error);
+      alert("로그인 실패");
     }
   };
 
+  const styles = {
+    container: {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100vh",
+      backgroundColor: "#f0f2f5",
+      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    },
+    title: {
+      marginBottom: 24,
+      fontSize: 28,
+      color: "#333",
+    },
+    button: {
+      backgroundColor: "#4285F4",
+      color: "white",
+      border: "none",
+      padding: "12px 24px",
+      borderRadius: 4,
+      fontSize: 16,
+      cursor: "pointer",
+      boxShadow: "0 2px 6px rgba(66, 133, 244, 0.4)",
+      transition: "background-color 0.3s ease",
+    },
+    buttonHover: {
+      backgroundColor: "#357ae8",
+    },
+  };
+
   return (
-    <div style={{ padding: 20 }}>
-      <h2>관리자 로그인</h2>
-      <form onSubmit={handleLogin}>
-        <div>
-          <label>사번(ID): </label>
-          <input value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} required />
-        </div>
-        <div>
-          <label>비밀번호: </label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        <button type="submit">로그인</button>
-      </form>
+    <div style={styles.container}>
+      <h2 style={styles.title}>로그인</h2>
+      <button
+        style={styles.button}
+        onClick={handleGoogleLogin}
+        onMouseOver={e => (e.currentTarget.style.backgroundColor = "#357ae8")}
+        onMouseOut={e => (e.currentTarget.style.backgroundColor = "#4285F4")}
+      >
+        Google로 로그인
+      </button>
     </div>
   );
 };
