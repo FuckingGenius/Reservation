@@ -11,6 +11,7 @@ import AdminSettings from "./pages/AdminSettings";
 import Admin from "./pages/Admin";
 import Login from "./pages/login";
 import Check from "./pages/ReservastionCheck";
+import AdminEdit from "./pages/AdminEditReservation";
 
 const PrivateRoute = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -63,6 +64,7 @@ function App() {
         <Route path="/admin/settings" element={<PrivateRoute><AdminSettings /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
         <Route path="/edit/:id" element={<EditReservation />} />
+        <Route path="/adminEdit/:id" element={<PrivateRoute><AdminEdit /> </PrivateRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/check" element={<Check />} />
       </Routes>

@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+} from "firebase/firestore";
 
 const EditReservation = () => {
   const { id } = useParams();
@@ -21,6 +29,7 @@ const EditReservation = () => {
   const [settings, setSettings] = useState(null);
   const [timeOptions, setTimeOptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dateWarning, setDateWarning] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,6 +91,23 @@ const EditReservation = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // 날짜 선택 시 휴무일 경고 메시지 표시
+  useEffect(() => {
+    if (!form.date || !settings) return;
+
+    const dateObj = new Date(form.date);
+    const dayOfWeek = dateObj.getDay(); // 0 (일) ~ 6 (토)
+    const isHoliday =
+      settings.offDays?.includes(dayOfWeek) ||
+      settings.holidays?.includes(form.date);
+
+    if (isHoliday) {
+      setDateWarning("⚠️ 선택하신 날짜는 휴무일입니다.");
+    } else {
+      setDateWarning("");
+    }
+  }, [form.date, settings]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -94,11 +120,19 @@ const EditReservation = () => {
     );
 
     const snapshot = await getDocs(q);
-    const otherReservations = snapshot.docs.filter(docSnap => docSnap.id !== id);
-    const totalPeople = otherReservations.reduce((sum, r) => sum + Number(r.data().people), 0);
+    const otherReservations = snapshot.docs.filter(
+      (docSnap) => docSnap.id !== id
+    );
+    const totalPeople = otherReservations.reduce(
+      (sum, r) => sum + Number(r.data().people),
+      0
+    );
 
     // 인원 수 초과 검사
-    if (settings.maxPeoplePerReservation && totalPeople + Number(form.people) > settings.maxPeoplePerReservation) {
+    if (
+      settings.maxPeoplePerReservation &&
+      totalPeople + Number(form.people) > settings.maxPeoplePerReservation
+    ) {
       alert("해당 시간의 인원 수가 초과되었습니다.");
       return;
     }
@@ -117,7 +151,9 @@ const EditReservation = () => {
 
     // 휴무일 검사
     const dayOfWeek = new Date(form.date).getDay(); // 일(0)~토(6)
-    const isHoliday = settings.offDays?.includes(dayOfWeek) || settings.holidays?.includes(form.date);
+    const isHoliday =
+      settings.offDays?.includes(dayOfWeek) ||
+      settings.holidays?.includes(form.date);
     if (isHoliday) {
       alert("해당 날짜는 예약할 수 없습니다.");
       return;
@@ -125,7 +161,9 @@ const EditReservation = () => {
 
     // 영업 시간 검사
     if (form.time < settings.openTime || form.time > settings.closeTime) {
-      alert(`예약 가능한 시간은 ${settings.openTime} ~ ${settings.closeTime} 입니다.`);
+      alert(
+        `예약 가능한 시간은 ${settings.openTime} ~ ${settings.closeTime} 입니다.`
+      );
       return;
     }
 
@@ -179,7 +217,9 @@ const EditReservation = () => {
         >
           <option value="">시간 선택</option>
           {timeOptions.map((time) => (
-            <option key={time} value={time}>{time}</option>
+            <option key={time} value={time}>
+              {time}
+            </option>
           ))}
         </select>
         <input
@@ -198,7 +238,14 @@ const EditReservation = () => {
           placeholder="요청사항"
           style={styles.textarea}
         />
-        <button type="submit" style={styles.button}>수정 완료</button>
+        {dateWarning && (
+          <div style={{ color: "red", fontWeight: "bold", textAlign: "center" }}>
+            {dateWarning}
+          </div>
+        )}
+        <button type="submit" style={styles.button}>
+          수정 완료
+        </button>
       </form>
     </div>
   );

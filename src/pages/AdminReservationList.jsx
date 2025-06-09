@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
-import { format, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  isWithinInterval,
+} from "date-fns";
 
 const containerStyle = {
   maxWidth: "900px",
@@ -21,9 +27,19 @@ const buttonStyle = {
   border: "none",
   cursor: "pointer",
   fontWeight: "600",
-  backgroundColor: "#3b82f6", // 예약 확인하기 버튼과 동일한 파란색
+  backgroundColor: "#3b82f6",
   color: "white",
   fontSize: "14px",
+};
+
+const deleteButtonStyle = {
+  ...buttonStyle,
+  backgroundColor: "#ef4444",
+};
+
+const editButtonStyle = {
+  ...buttonStyle,
+  backgroundColor: "#10b981",
 };
 
 const inputStyle = {
@@ -72,14 +88,16 @@ const AdminReservationList = () => {
   const [sortOrder, setSortOrder] = useState("asc");
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    const fetchReservations = async () => {
-      const snapshot = await getDocs(collection(db, "reservations"));
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setReservations(data);
-      setFilteredReservations(data);
-    };
+  const navigate = useNavigate();
 
+  const fetchReservations = async () => {
+    const snapshot = await getDocs(collection(db, "reservations"));
+    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setReservations(data);
+    setFilteredReservations(data);
+  };
+
+  useEffect(() => {
     fetchReservations();
   }, []);
 
@@ -150,7 +168,9 @@ const AdminReservationList = () => {
       .map((row) => row.join(","))
       .join("\n");
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
@@ -159,6 +179,18 @@ const AdminReservationList = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleDelete = async (id) => {
+    const confirm = window.confirm("정말 이 예약을 삭제하시겠습니까?");
+    if (!confirm) return;
+
+    await deleteDoc(doc(db, "reservations", id));
+    fetchReservations(); // 다시 로딩
+  };
+
+  const handleEdit = (id) => {
+    navigate(`/adminEdit/${id}`);
   };
 
   return (
@@ -185,7 +217,7 @@ const AdminReservationList = () => {
             이번 주
           </button>
           <button
-            style={{ ...buttonStyle, backgroundColor: "#6b7280" }} // 회색 버튼
+            style={{ ...buttonStyle, backgroundColor: "#6b7280" }}
             onClick={handleAllFilter}
           >
             전체
@@ -225,17 +257,32 @@ const AdminReservationList = () => {
             <th style={thTdStyle}>전화번호</th>
             <th style={thTdStyle}>인원수</th>
             <th style={thTdStyle}>요청사항</th>
+            <th style={thTdStyle}>관리</th>
           </tr>
         </thead>
         <tbody>
           {filteredReservations.map((res) => (
-            <tr key={res.id} style={{ cursor: "default" }}>
+            <tr key={res.id}>
               <td style={thTdStyle}>{res.date}</td>
               <td style={thTdStyle}>{res.time}</td>
               <td style={thTdStyle}>{res.name}</td>
               <td style={thTdStyle}>{res.phone}</td>
               <td style={thTdStyle}>{res.people ?? "-"}</td>
               <td style={thTdStyle}>{res.request || "-"}</td>
+              <td style={thTdStyle}>
+                <button
+                  style={editButtonStyle}
+                  onClick={() => handleEdit(res.id)}
+                >
+                  수정
+                </button>
+                <button
+                  style={deleteButtonStyle}
+                  onClick={() => handleDelete(res.id)}
+                >
+                  삭제
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
